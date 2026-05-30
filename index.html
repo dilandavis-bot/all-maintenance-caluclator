@@ -144,8 +144,9 @@
             padding: 0.8rem;
             border-radius: 6px;
             margin-top: 0.5rem;
-            font-family: monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 0.9rem;
+            color: #2d3748;
         }
 
         .dose-table {
@@ -205,7 +206,6 @@
         <p>Custom Institutional Protocol Configuration (ANC ~0.75 / TLC ~2.0 / Plt ~75k)</p>
     </header>
 
-    <!-- Tool 1: Baseline / Starting Dose Stratification Helper -->
     <div class="card">
         <h2>Initial Baseline Dosing Stratifier</h2>
         <div class="form-group" style="max-width: 300px;">
@@ -215,7 +215,6 @@
         <div id="bsa-guideline-output" class="bsa-output-box"></div>
     </div>
 
-    <!-- Tool 2: Active Monitoring Titration -->
     <div class="grid">
         <div class="card">
             <h2>Current Lab & Dose Parameters</h2>
@@ -251,7 +250,6 @@
             </div>
         </div>
 
-        <!-- Dynamic Output Display -->
         <div class="card" id="output-container">
             <h2>Active Titration Recommendation</h2>
             <div id="output-title" class="output-title">Loading...</div>
@@ -321,25 +319,25 @@
         let mtxRecommendation = `<strong>Initial MTX Starting Dose Range:</strong> ${Math.round(bsa * 15 * 10)/10} mg to ${Math.round(bsa * 20 * 10)/10} mg weekly (based on 15-20 mg/m²).`;
 
         if (bsa < 1.3) {
-            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 50 mg on <strong>Alternate Days</strong> (BSA &lt; 1.3 m²). <br><small><i>(Weekly total: 175mg • Average: 25mg/day)</i></small>";
+            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tablet (50mg) on <strong>Alternate Days</strong> (BSA &lt; 1.3 m²). <br><small><i>(Weekly total: 175mg • Average: 25mg/day)</i></small>";
         } else if (bsa >= 1.3 && bsa <= 1.5) {
-            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 50 mg <strong>Once Daily (OD)</strong> (BSA 1.3 - 1.5 m²). <br><small><i>(Weekly total: 350mg • Average: 50mg/day)</i></small>";
+            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tablet (50mg) <strong>Once Daily (OD)</strong> (BSA 1.3 - 1.5 m²). <br><small><i>(Weekly total: 350mg • Average: 50mg/day)</i></small>";
         } else {
-            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tab (50mg) / 2 tabs (100mg) on <strong>Alternate Days</strong> (BSA &gt; 1.5 m²). <br><small><i>(Weekly total: 525mg • Average: 75mg/day)</i></small>";
+            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tablet (50mg) / 2 tablets (100mg) on <strong>Alternate Days</strong> (BSA &gt; 1.5 m²). <br><small><i>(Weekly total: 525mg • Average: 75mg/day)</i></small>";
         }
 
         outBox.innerHTML = `${mp6Recommendation}<br><br>${mtxRecommendation}<br><small style="color: var(--text-muted); display:block; margin-top:0.4rem;">*Titrate up/down subsequently based on count tolerance.</small>`;
     }
 
     /**
-     * Converts an average target daily dose of 6-MP into a realistic weekly 
-     * schedule STRICTLY using combinations of whole 50mg tablets (0, 50, 100, 150).
+     * Converts an average target daily dose of 6-MP into an optimized weekly 
+     * schedule utilizing strictly 50mg or 100mg options, maximizing spread.
      */
     function convertToWeeklySchedule(targetDailyDose) {
         const targetWeeklyTotal = targetDailyDose * 7;
         
-        // STRICTLY whole 50mg tablet multiples allowed
-        const options = [0, 50, 100, 150];
+        // Allowed safe daily options using strictly standard 50mg pill components
+        const options = [0, 50, 100];
         let bestMatch = null;
         let minDiff = Infinity;
 
@@ -350,7 +348,8 @@
                     let currentTotal = (d1 * daysD1) + (d2 * daysD2);
                     let diff = Math.abs(currentTotal - targetWeeklyTotal);
 
-                    if (diff < minDiff) {
+                    // If differences are identical, choose the combination with the lower peak dose (smoother distribution)
+                    if (diff < minDiff || (diff === minDiff && Math.max(d1, d2) < (bestMatch ? Math.max(bestMatch.d1, bestMatch.d2) : Infinity))) {
                         minDiff = diff;
                         bestMatch = { d1, daysD1, d2, daysD2, total: currentTotal };
                     }
@@ -360,25 +359,33 @@
 
         if (!bestMatch) return "Manual calculation required";
 
-        // If the entire week uses the exact same dose
+        const mapToTabs = (mg) => {
+            if (mg === 0) return "0 tablets";
+            if (mg === 50) return "1 tablet (50mg)";
+            if (mg === 100) return "2 tablets (100mg)";
+            return `${mg}mg`;
+        };
+
+        // If uniform everyday dosing
         if (bestMatch.daysD1 === 7 || bestMatch.d2 === bestMatch.d1) {
-            return `Take ${bestMatch.d1}mg Once Daily.`;
+            return `Take ${mapToTabs(bestMatch.d1)} Once Daily.`;
         }
 
-        // Clean text formatting for alternate days patterns
+        // Clean text mapping for standard alternate days configurations
         if (bestMatch.daysD1 === 4 && bestMatch.daysD2 === 3) {
-            if (bestMatch.d1 === 50 && bestMatch.d2 === 0) return `Take 50mg on Alternate Days.`;
-            if (bestMatch.d1 === 100 && bestMatch.d2 === 50) return `Take 50mg / 100mg on Alternate Days.`;
+            if (bestMatch.d1 === 50 && bestMatch.d2 === 0) return `Take 1 tablet (50mg) on Alternate Days.`;
+            if (bestMatch.d1 === 100 && bestMatch.d2 === 50) return `Take 1 tablet (50mg) / 2 tablets (100mg) on Alternate Days.`;
         }
         if (bestMatch.daysD1 === 3 && bestMatch.daysD2 === 4) {
-            if (bestMatch.d1 === 0 && bestMatch.d2 === 50) return `Take 50mg on Alternate Days.`;
-            if (bestMatch.d1 === 50 && bestMatch.d2 === 100) return `Take 50mg / 100mg on Alternate Days.`;
+            if (bestMatch.d1 === 0 && bestMatch.d2 === 50) return `Take 1 tablet (50mg) on Alternate Days.`;
+            if (bestMatch.d1 === 50 && bestMatch.d2 === 100) return `Take 1 tablet (50mg) / 2 tablets (100mg) on Alternate Days.`;
         }
 
-        // Default layout description using whole tablet multiples
-        let part1 = bestMatch.daysD1 > 0 ? `${bestMatch.d1}mg for ${bestMatch.daysD1} days` : "";
-        let part2 = bestMatch.daysD2 > 0 ? `${bestMatch.d2}mg for ${bestMatch.daysD2} days` : "";
-        return `Take ${part1}${part1 && part2 ? " and " : ""}${part2} a week.\n(Total: ${bestMatch.total}mg/week)`;
+        // General optimized narrative
+        let text1 = bestMatch.daysD1 > 0 ? `${mapToTabs(bestMatch.d1)} for ${bestMatch.daysD1} days` : "";
+        let text2 = bestMatch.daysD2 > 0 ? `${mapToTabs(bestMatch.d2)} for ${bestMatch.daysD2} days` : "";
+        
+        return `Take ${text1}${text1 && text2 ? " and " : ""}${text2} a week.\n(Weekly Total: ${bestMatch.total}mg)`;
     }
 
     function calculateTitration() {
@@ -426,7 +433,7 @@
 
             container.classList.add('status-DEESCALATE');
             titleEl.textContent = 'DE-ESCALATE DOSES BY 25%';
-            instEl.textContent = `Triggered by: ${reasons.join(', ')}.\n\nAction: De-escalate ONE drug at a time by 25% of its current value using the whole-tablet instructions in the table below.`;
+            instEl.textContent = `Triggered by: ${reasons.join(', ')}.\n\nAction: De-escalate ONE drug at a time by 25% of its current value using the tablet instructions in the table below.`;
             tableWrapper.style.display = 'block';
             return;
         }
@@ -434,7 +441,7 @@
         if (isHighCounts) {
             container.classList.add('status-ESCALATE');
             titleEl.textContent = 'ELIGIBLE FOR 25% UPTITRATION';
-            instEl.textContent = `Patient displays sub-therapeutic myelosuppression (ANC > 0.85, TLC > 2.2, Platelets flat/high).\n\nAction: Step up ONE drug at a time by 25% using the whole-tablet instructions shown below.`;
+            instEl.textContent = `Patient displays sub-therapeutic myelosuppression (ANC > 0.85, TLC > 2.2, Platelets flat/high).\n\nAction: Step up ONE drug at a time by 25% using the tablet instructions shown below.`;
             tableWrapper.style.display = 'block';
             return;
         }
