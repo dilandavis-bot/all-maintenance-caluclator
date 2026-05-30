@@ -246,7 +246,7 @@
             <div class="form-group">
                 <label for="mtx">Current MTX Baseline Dose (mg)</label>
                 <input type="number" id="mtx" value="25" min="0">
-                <small style="color: var(--text-muted); font-size: 0.75rem;">Weekly total dose administered</small>
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Weekly total dose administered on Thursdays</small>
             </div>
         </div>
 
@@ -281,9 +281,11 @@
                             <td><strong>MTX</strong><br><small style="color:var(--text-muted)">Weekly Targets</small></td>
                             <td>
                                 <div id="minus-mtx-raw" style="font-weight:bold;"></div>
+                                <div id="minus-mtx-sched" class="schedule-box"></div>
                             </td>
                             <td>
                                 <div id="plus-mtx-raw" style="font-weight:bold;"></div>
+                                <div id="plus-mtx-sched" class="schedule-box"></div>
                             </td>
                         </tr>
                     </tbody>
@@ -315,8 +317,20 @@
         const bsa = parseFloat(document.getElementById('bsa-input').value) || 0;
         const outBox = document.getElementById('bsa-guideline-output');
         
+        const rawMtxMin = bsa * 15;
+        const rawMtxMax = bsa * 20;
+        
+        // Round baseline MTX guidelines to nearest 2.5mg multiple and convert to tablets
+        const roundToMTXMultiple = (val) => Math.round(val / 2.5) * 2.5;
+        const minMtxDose = roundToMTXMultiple(rawMtxMin);
+        const maxMtxDose = roundToMTXMultiple(rawMtxMax);
+        
+        const minMtxTabs = Math.round(minMtxDose / 2.5);
+        const maxMtxTabs = Math.round(maxMtxDose / 2.5);
+
         let mp6Recommendation = "";
-        let mtxRecommendation = `<strong>Initial MTX Starting Dose Range:</strong> ${Math.round(bsa * 15 * 10)/10} mg to ${Math.round(bsa * 20 * 10)/10} mg weekly (based on 15-20 mg/m²).`;
+        let mtxRecommendation = `<strong>Initial MTX Starting Regimen (Thursdays):</strong><br>` +
+                                `Take <strong>${minMtxDose} mg</strong> (${minMtxTabs} tablets) to <strong>${maxMtxDose} mg</strong> (${maxMtxTabs} tablets) as a single weekly dose on Thursdays.`;
 
         if (bsa < 1.3) {
             mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tablet (50mg) on <strong>Alternate Days</strong> (BSA &lt; 1.3 m²). <br><small><i>(Weekly total: 175mg • Average: 25mg/day)</i></small>";
@@ -335,8 +349,6 @@
      */
     function convertToWeeklySchedule(targetDailyDose) {
         const targetWeeklyTotal = targetDailyDose * 7;
-        
-        // Allowed safe daily options using strictly standard 50mg pill components
         const options = [0, 50, 100];
         let bestMatch = null;
         let minDiff = Infinity;
@@ -348,7 +360,6 @@
                     let currentTotal = (d1 * daysD1) + (d2 * daysD2);
                     let diff = Math.abs(currentTotal - targetWeeklyTotal);
 
-                    // If differences are identical, choose the combination with the lower peak dose (smoother distribution)
                     if (diff < minDiff || (diff === minDiff && Math.max(d1, d2) < (bestMatch ? Math.max(bestMatch.d1, bestMatch.d2) : Infinity))) {
                         minDiff = diff;
                         bestMatch = { d1, daysD1, d2, daysD2, total: currentTotal };
@@ -366,12 +377,10 @@
             return `${mg}mg`;
         };
 
-        // If uniform everyday dosing
         if (bestMatch.daysD1 === 7 || bestMatch.d2 === bestMatch.d1) {
             return `Take ${mapToTabs(bestMatch.d1)} Once Daily.`;
         }
 
-        // Clean text mapping for standard alternate days configurations
         if (bestMatch.daysD1 === 4 && bestMatch.daysD2 === 3) {
             if (bestMatch.d1 === 50 && bestMatch.d2 === 0) return `Take 1 tablet (50mg) on Alternate Days.`;
             if (bestMatch.d1 === 100 && bestMatch.d2 === 50) return `Take 1 tablet (50mg) / 2 tablets (100mg) on Alternate Days.`;
@@ -381,11 +390,25 @@
             if (bestMatch.d1 === 50 && bestMatch.d2 === 100) return `Take 1 tablet (50mg) / 2 tablets (100mg) on Alternate Days.`;
         }
 
-        // General optimized narrative
         let text1 = bestMatch.daysD1 > 0 ? `${mapToTabs(bestMatch.d1)} for ${bestMatch.daysD1} days` : "";
         let text2 = bestMatch.daysD2 > 0 ? `${mapToTabs(bestMatch.d2)} for ${bestMatch.daysD2} days` : "";
         
         return `Take ${text1}${text1 && text2 ? " and " : ""}${text2} a week.\n(Weekly Total: ${bestMatch.total}mg)`;
+    }
+
+    /**
+     * Converts a raw weekly Methotrexate dose target into the nearest 2.5mg multiple 
+     * and maps it explicitly to a single-day Thursday pill count prescription.
+     */
+    function convertToMtxSchedule(rawWeeklyDose) {
+        // Round to nearest 2.5mg block
+        const roundedDose = Math.round(rawWeeklyDose / 2.5) * 2.5;
+        const totalTablets = Math.round(roundedDose / 2.5);
+        
+        if (roundedDose === 0) {
+            return "Hold Methotrexate dose.";
+        }
+        return `Take ${totalTablets} tablets (${roundedDose}mg) as a single dose on Thursdays.`;
     }
 
     function calculateTitration() {
@@ -422,8 +445,11 @@
         document.getElementById('plus-6mp-raw').textContent = `${plus6MPRaw} mg/day`;
         document.getElementById('plus-6mp-sched').innerText = convertToWeeklySchedule(plus6MPRaw);
 
-        document.getElementById('minus-mtx-raw').textContent = `${minusMTXRaw} mg/week`;
-        document.getElementById('plus-mtx-raw').textContent = `${plusMTXRaw} mg/week`;
+        document.getElementById('minus-mtx-raw').textContent = `${Math.round(minusMTXRaw * 10)/10} mg/week`;
+        document.getElementById('minus-mtx-sched').innerText = convertToMtxSchedule(minusMTXRaw);
+        
+        document.getElementById('plus-mtx-raw').textContent = `${Math.round(plusMTXRaw * 10)/10} mg/week`;
+        document.getElementById('plus-mtx-sched').innerText = convertToMtxSchedule(plusMTXRaw);
 
         if (isLowCounts) {
             let reasons = [];
