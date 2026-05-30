@@ -19,8 +19,6 @@
             --bg-maintain: #f0fff4;
             --color-escalate: #3182ce;
             --bg-escalate: #ebf8ff;
-            --color-info: #805ad5;
-            --bg-info: #faf5ff;
         }
 
         * {
@@ -118,15 +116,6 @@
             gap: 0.75rem;
         }
 
-        .bsa-output-box {
-            background-color: var(--bg-info);
-            border-left: 4px solid var(--color-info);
-            padding: 1rem;
-            border-radius: 4px;
-            margin-top: 1rem;
-            font-size: 0.95rem;
-        }
-
         #output-container {
             transition: all 0.3s ease;
             border-left: 5px solid var(--border-color);
@@ -219,21 +208,11 @@
 <div class="container">
     <header>
         <h1>ALL Maintenance Titration Engine</h1>
-        <p>Custom Institutional Protocol Configuration (ANC ~0.75 / TLC ~2.0 / Plt ~75k)</p>
+        <p>Active Monitoring Protocol (ANC ~0.75 / TLC ~2.0 / Plt ~75k)</p>
     </header>
 
-    <!-- Tool 1: Baseline / Starting Dose Stratification Helper -->
-    <div class="card">
-        <h2>Initial Baseline Dosing Stratifier</h2>
-        <div class="form-group" style="max-width: 300px;">
-            <label for="bsa-input">Patient Body Surface Area (BSA - m²)</label>
-            <input type="number" id="bsa-input" value="1.4" min="0.1" step="0.01">
-        </div>
-        <div id="bsa-guideline-output" class="bsa-output-box"></div>
-    </div>
-
-    <!-- Tool 2: Active Monitoring Titration -->
     <div class="grid">
+        <!-- Card 1: Input Parameters -->
         <div class="card">
             <h2>Current Lab & Regimen Parameters</h2>
             
@@ -279,7 +258,7 @@
             </div>
         </div>
 
-        <!-- Dynamic Output Display -->
+        <!-- Card 2: Output Recommendations -->
         <div class="card" id="output-container">
             <h2>Active Titration Recommendation</h2>
             <div id="output-title" class="output-title">Loading...</div>
@@ -337,43 +316,11 @@
             document.getElementById(id).addEventListener('input', calculateTitration);
         });
 
-        document.getElementById('bsa-input').addEventListener('input', processBSAGuideline);
-
-        processBSAGuideline();
         calculateTitration();
     });
 
-    function processBSAGuideline() {
-        const bsa = parseFloat(document.getElementById('bsa-input').value) || 0;
-        const outBox = document.getElementById('bsa-guideline-output');
-        
-        const rawMtxMin = bsa * 15;
-        const rawMtxMax = bsa * 20;
-        
-        const roundToMTXMultiple = (val) => Math.round(val / 2.5) * 2.5;
-        const minMtxDose = roundToMTXMultiple(rawMtxMin);
-        const maxMtxDose = roundToMTXMultiple(rawMtxMax);
-        
-        const minMtxTabs = Math.round(minMtxDose / 2.5);
-        const maxMtxTabs = Math.round(maxMtxDose / 2.5);
-
-        let mp6Recommendation = "";
-        let mtxRecommendation = `<strong>Initial MTX Starting Regimen (Thursdays):</strong><br>` +
-                                `Take <strong>${minMtxDose} mg</strong> (${minMtxTabs} tablets) to <strong>${maxMtxDose} mg</strong> (${maxMtxTabs} tablets) as a single weekly dose on Thursdays.`;
-
-        if (bsa < 1.3) {
-            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tablet (50mg) on <strong>Alternate Days</strong> (BSA &lt; 1.3 m²). <br><small><i>(Weekly total: 175mg • Average: 25mg/day)</i></small>";
-        } else if (bsa >= 1.3 && bsa <= 1.5) {
-            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tablet (50mg) <strong>Once Daily (OD)</strong> (BSA 1.3 - 1.5 m²). <br><small><i>(Weekly total: 350mg • Average: 50mg/day)</i></small>";
-        } else {
-            mp6Recommendation = "<strong>Initial 6-MP Dose:</strong> 1 tablet (50mg) / 2 tablets (100mg) on <strong>Alternate Days</strong> (BSA &gt; 1.5 m²). <br><small><i>(Weekly total: 525mg • Average: 75mg/day)</i></small>";
-        }
-
-        outBox.innerHTML = `${mp6Recommendation}<br><br>${mtxRecommendation}<br><small style="color: var(--text-muted); display:block; margin-top:0.4rem;">*Titrate up/down subsequently based on count tolerance.</small>`;
-    }
-
     /**
-     * Converts an average target daily dose of 6-MP into a realistic weekly 
+     * Converts an average target daily dose of 6-MP into an optimized weekly 
      * schedule utilizing strictly 50mg or 100mg options, prioritizing a continuous 
      * daily spread to eliminate long medication gaps.
      */
@@ -391,13 +338,10 @@
                     let currentTotal = (d1 * daysD1) + (d2 * daysD2);
                     let diff = Math.abs(currentTotal - targetWeeklyTotal);
                     
-                    // Count how many days the patient receives an active treatment dose
                     let activeDays = 0;
                     if (d1 > 0) activeDays += daysD1;
                     if (d2 > 0) activeDays += daysD2;
 
-                    // Condition 1: Prioritize the closest mathematical fit to the target total
-                    // Condition 2: If the error margin matches, choose the combination with the maximum active daily spread
                     if (diff < minDiff || (diff === minDiff && activeDays > maxActiveDays)) {
                         minDiff = diff;
                         maxActiveDays = activeDays;
