@@ -222,6 +222,7 @@
         <p>Custom Institutional Protocol Configuration (ANC ~0.75 / TLC ~2.0 / Plt ~75k)</p>
     </header>
 
+    <!-- Tool 1: Baseline / Starting Dose Stratification Helper -->
     <div class="card">
         <h2>Initial Baseline Dosing Stratifier</h2>
         <div class="form-group" style="max-width: 300px;">
@@ -231,6 +232,7 @@
         <div id="bsa-guideline-output" class="bsa-output-box"></div>
     </div>
 
+    <!-- Tool 2: Active Monitoring Titration -->
     <div class="grid">
         <div class="card">
             <h2>Current Lab & Regimen Parameters</h2>
@@ -277,6 +279,7 @@
             </div>
         </div>
 
+        <!-- Dynamic Output Display -->
         <div class="card" id="output-container">
             <h2>Active Titration Recommendation</h2>
             <div id="output-title" class="output-title">Loading...</div>
@@ -370,13 +373,15 @@
     }
 
     /**
-     * Converts an average target daily dose of 6-MP into an optimized weekly 
-     * schedule utilizing strictly 50mg or 100mg options, maximizing spread.
+     * Converts an average target daily dose of 6-MP into a realistic weekly 
+     * schedule utilizing strictly 50mg or 100mg options, prioritizing a continuous 
+     * daily spread to eliminate long medication gaps.
      */
     function convertToWeeklySchedule(targetDailyDose) {
         const targetWeeklyTotal = targetDailyDose * 7;
         const options = [0, 50, 100];
         let bestMatch = null;
+        let maxActiveDays = -1;
         let minDiff = Infinity;
 
         for (let d1 of options) {
@@ -385,9 +390,17 @@
                     let daysD2 = 7 - daysD1;
                     let currentTotal = (d1 * daysD1) + (d2 * daysD2);
                     let diff = Math.abs(currentTotal - targetWeeklyTotal);
+                    
+                    // Count how many days the patient receives an active treatment dose
+                    let activeDays = 0;
+                    if (d1 > 0) activeDays += daysD1;
+                    if (d2 > 0) activeDays += daysD2;
 
-                    if (diff < minDiff || (diff === minDiff && Math.max(d1, d2) < (bestMatch ? Math.max(bestMatch.d1, bestMatch.d2) : Infinity))) {
+                    // Condition 1: Prioritize the closest mathematical fit to the target total
+                    // Condition 2: If the error margin matches, choose the combination with the maximum active daily spread
+                    if (diff < minDiff || (diff === minDiff && activeDays > maxActiveDays)) {
                         minDiff = diff;
+                        maxActiveDays = activeDays;
                         bestMatch = { d1, daysD1, d2, daysD2, total: currentTotal };
                     }
                 }
@@ -439,20 +452,15 @@
             platelets: parseFloat(document.getElementById('platelets').value) || 0
         };
 
-        // Parse 6-MP tablet days
         const mp6Days1Tab = Math.min(7, Math.max(0, parseInt(document.getElementById('mp6-days-1tab').value) || 0));
         const mp6Days2Tab = Math.min(7 - mp6Days1Tab, Math.max(0, parseInt(document.getElementById('mp6-days-2tab').value) || 0));
-        const mp6Days0Tab = Math.max(0, 7 - mp6Days1Tab - mp6Days2Tab);
         
-        // Compute total weekly dose and find average daily mg
         const totalMp6Weekly = (mp6Days1Tab * 50) + (mp6Days2Tab * 100);
         const calculatedMp6DailyAverage = totalMp6Weekly / 7;
 
-        // Parse MTX tablet inputs
         const mtxTablets = parseFloat(document.getElementById('mtx-tablets').value) || 0;
         const calculatedMtxWeeklyTotal = mtxTablets * 2.5;
 
-        // Update real-time summary badges below input groups
         document.getElementById('mp6-live-calc-badge').textContent = `Calculated: ${Math.round(calculatedMp6DailyAverage * 10)/10} mg/day baseline`;
         document.getElementById('mtx-live-calc-badge').textContent = `Calculated: ${Math.round(calculatedMtxWeeklyTotal * 10)/10} mg/week baseline`;
 
