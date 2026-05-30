@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALL Maintenance Titration Calculator (SI Units)</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            
+            /* Status Colors */
+            --color-hold: #e53e3e;
+            --bg-hold: #fff5f5;
+            --color-reduce: #dd6b20;
+            --bg-reduce: #fffaf0;
+            --color-maintain: #38a169;
+            --bg-maintain: #f0fff4;
+            --color-escalate: #3182ce;
+            --bg-escalate: #ebf8ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem 1rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            color: #1a202c;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.2rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            color: #4a5568;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: #4a5568;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: #3182ce;
+        }
+
+        /* Output Container Styling */
+        #output-container {
+            transition: all 0.3s ease;
+            border-left: 5px solid var(--border-color);
+        }
+
+        .output-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .output-instructions {
+            font-size: 0.95rem;
+            white-space: pre-line;
+            margin-bottom: 1.5rem;
+        }
+
+        .dose-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .dose-table th, .dose-table td {
+            text-align: left;
+            padding: 0.6rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .dose-table th {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        /* Dynamic Status Classes */
+        .status-HOLD {
+            border-color: var(--color-hold) !important;
+            background-color: var(--bg-hold) !important;
+            color: var(--color-hold);
+        }
+        .status-HOLD .output-instructions, .status-HOLD td { color: #9b2c2c; }
+
+        .status-REDUCE_50 {
+            border-color: var(--color-reduce) !important;
+            background-color: var(--bg-reduce) !important;
+            color: var(--color-reduce);
+        }
+        .status-REDUCE_50 .output-instructions, .status-REDUCE_50 td { color: #9c4221; }
+
+        .status-MAINTAIN {
+            border-color: var(--color-maintain) !important;
+            background-color: var(--bg-maintain) !important;
+            color: var(--color-maintain);
+        }
+        .status-MAINTAIN .output-instructions, .status-MAINTAIN td { color: #22543d; }
+
+        .status-ESCALATE {
+            border-color: var(--color-escalate) !important;
+            background-color: var(--bg-escalate) !important;
+            color: var(--color-escalate);
+        }
+        .status-ESCALATE .output-instructions, .status-ESCALATE td { color: #2b6cb0; }
+
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>ALL Maintenance Titration Engine</h1>
+        <p>Interactive Dose Calculator • Optimized for SI Units</p>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Patient Parameters</h2>
+            
+            <div class="form-group">
+                <label for="anc">Absolute Neutrophil Count (ANC × 10⁹/L)</label>
+                <input type="number" id="anc" value="1.8" min="0" step="0.01" placeholder="e.g., 1.5">
+            </div>
+
+            <div class="form-group">
+                <label for="platelets">Platelet Count (× 10⁹/L)</label>
+                <input type="number" id="platelets" value="210" min="0" step="1" placeholder="e.g., 150">
+            </div>
+
+            <div class="form-group">
+                <label for="alt">ALT or AST (x Upper Limit of Normal)</label>
+                <input type="number" id="alt" value="1" min="0" step="0.1" placeholder="e.g., 1.5">
+            </div>
+
+            <div class="form-group">
+                <label for="bilirubin">Total Bilirubin (x Upper Limit of Normal)</label>
+                <input type="number" id="bilirubin" value="1" min="0" step="0.1" placeholder="e.g., 1.0">
+            </div>
+
+            <div class="form-group">
+                <label for="mp6">Current 6-MP Daily Dose (mg)</label>
+                <input type="number" id="mp6" value="50" min="0" placeholder="e.g., 50">
+            </div>
+
+            <div class="form-group">
+                <label for="mtx">Current MTX Weekly Dose (mg)</label>
+                <input type="number" id="mtx" value="20" min="0" placeholder="e.g., 20">
+            </div>
+        </div>
+
+        <div class="card" id="output-container">
+            <h2>Clinical Recommendation</h2>
+            <div id="output-title" class="output-title">Loading...</div>
+            <div id="output-instructions" class="output-instructions"></div>
+            
+            <div id="dose-table-wrapper" style="display: none;">
+                <h3>Calculated Target Doses</h3>
+                <table class="dose-table">
+                    <thead>
+                        <tr>
+                            <th>Medication</th>
+                            <th>Previous Dose</th>
+                            <th>New Target Dose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>6-MP (Daily)</td>
+                            <td id="prev-6mp">-</td>
+                            <td id="new-6mp" style="font-weight: bold;">-</td>
+                        </tr>
+                        <tr>
+                            <td>Methotrexate (Weekly)</td>
+                            <td id="prev-mtx">-</td>
+                            <td id="new-mtx" style="font-weight: bold;">-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>For educational use inside clinical oncology training contexts. Cross-reference actions with local institutional trial protocols.</p>
+    </footer>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const inputs = ['anc', 'platelets', 'alt', 'bilirubin', 'mp6', 'mtx'];
+        
+        inputs.forEach(id => {
+            document.getElementById(id).addEventListener('input', calculateAction);
+        });
+
+        calculateAction();
+    });
+
+    function calculateAction() {
+        // Collect numerical values from inputs (Using SI Units)
+        const labs = {
+            anc: parseFloat(document.getElementById('anc').value) || 0,
+            platelets: parseFloat(document.getElementById('platelets').value) || 0,
+            altMultiplier: parseFloat(document.getElementById('alt').value) || 0,
+            bilirubinMultiplier: parseFloat(document.getElementById('bilirubin').value) || 0
+        };
+
+        const doses = {
+            mp6: parseFloat(document.getElementById('mp6').value) || 0,
+            mtx: parseFloat(document.getElementById('mtx').value) || 0
+        };
+
+        const container = document.getElementById('output-container');
+        const titleEl = document.getElementById('output-title');
+        const instEl = document.getElementById('output-instructions');
+        const tableWrapper = document.getElementById('dose-table-wrapper');
+        
+        container.className = 'card';
+        tableWrapper.style.display = 'none';
+
+        // 1. Check Critical Interruption Thresholds (HOLD)
+        // ANC < 0.5 x 10^9/L or Platelets < 50 x 10^9/L
+        if (labs.anc < 0.5 || labs.platelets < 50 || labs.altMultiplier > 5 || labs.bilirubinMultiplier > 3) {
+            let reasons = [];
+            if (labs.anc < 0.5) reasons.push("profound neutropenia (ANC < 0.5 × 10⁹/L)");
+            if (labs.platelets < 50) reasons.push("severe thrombocytopenia (Platelets < 50 × 10⁹/L)");
+            if (labs.altMultiplier > 5) reasons.push("hepatotoxicity (ALT/AST > 5x ULN)");
+            if (labs.bilirubinMultiplier > 3) reasons.push("hyperbilirubinemia (Bilirubin > 3x ULN)");
+
+            container.classList.add('status-HOLD');
+            titleEl.textContent = 'HOLD ALL MAINTENANCE THERAPY';
+            instEl.textContent = `Immediately stop both medications due to: ${reasons.join(', ')}.\n\nMonitor CBC and LFTs regularly. Do not restart until parameters climb back above toxic boundaries (ANC > 0.75 × 10⁹/L, Platelets > 75 × 10⁹/L).`;
+            return;
+        }
+
+        // 2. Check Moderate Cytopenia (50% Dose Reduction)
+        // ANC < 0.75 x 10^9/L or Platelets < 75 x 10^9/L
+        if (labs.anc < 0.75 || labs.platelets < 75) {
+            const target6MP = Math.round(doses.mp6 * 0.5 * 10) / 10;
+            const targetMTX = Math.round(doses.mtx * 0.5 * 10) / 10;
+
+            container.classList.add('status-REDUCE_50');
+            titleEl.textContent = 'REDUCE DOSES BY 50%';
+            instEl.textContent = 'Moderate myelosuppression verified below target window thresholds. Down-titrate current baseline doses by 50% to optimize bone marrow recovery.';
+            
+            displayDoses(doses.mp6, target6MP, doses.mtx, targetMTX);
+            return;
+        }
+
+        // 3. Target Therapeutic Range Check
+        // ANC 0.75 to 1.5 x 10^9/L or Platelets 75 to 150 x 10^9/L
+        if (labs.anc <= 1.5 || labs.platelets <= 150) {
+            container.classList.add('status-MAINTAIN');
+            titleEl.textContent = 'MAINTAIN CURRENT DOSING';
+            instEl.textContent = 'Excellent. Patient metrics reside squarely within the protocol target window (ANC 0.75–1.5 × 10⁹/L and Platelets 75–150 × 10⁹/L). Continue regular dosing intervals and re-verify counts in 2–4 weeks.';
+            return;
+        }
+
+        // 4. Uptitration Trigger (ANC > 1.5 × 10⁹/L and Platelets > 150 × 10⁹/L)
+        const escalated6MP = Math.round(doses.mp6 * 1.25 * 10) / 10;
+        const escalatedMTX = Math.round(doses.mtx * 1.25 * 10) / 10;
+
+        container.classList.add('status-ESCALATE');
+        titleEl.textContent = 'ELIGIBLE FOR STEPWISE UPTITRATION';
+        instEl.textContent = 'Inadequate myelosuppression observed. To optimize treatment intensity, advance therapies using a staggered protocol escalation:\n\n' +
+                             `• Step 1: Immediately increase daily 6-MP to the target calculated below.\n` +
+                             `• Step 2: Track CBC for 4 weeks. If ANC remains persistently > 1.5 × 10⁹/L, then advance weekly Methotrexate to its target dose.`;
+        
+        displayDoses(doses.mp6, escalated6MP, doses.mtx, escalatedMTX);
+    }
+
+    function displayDoses(prevMP, newMP, prevMTX, newMTX) {
+        document.getElementById('dose-table-wrapper').style.display = 'block';
+        document.getElementById('prev-6mp').textContent = `${prevMP} mg`;
+        document.getElementById('new-6mp').textContent = `${newMP} mg`;
+        document.getElementById('prev-mtx').textContent = `${prevMTX} mg`;
+        document.getElementById('new-mtx').textContent = `${newMTX} mg`;
+    }
+</script>
+
+</body>
+</html>
